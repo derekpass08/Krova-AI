@@ -216,6 +216,25 @@
   details.legend summary { cursor: pointer; color: var(--muted); }
   details.legend p { margin: 8px 0 0; line-height: 1.55; }
 
+  /* the portal must not flash behind the auth gate before boot resolves */
+  body.signed-out .layout, body.signed-out .topbar .btn,
+  body.signed-out .topbar .pill, body.signed-out .topbar .row { visibility: hidden; }
+  #authGate .sheet header { justify-content: center; }
+
+  #licBanner {
+    padding: 9px 18px; font-size: 13px;
+    background: #241c0d; color: var(--warn);
+    border-bottom: 1px solid #5a4520;
+  }
+  #licBanner b { color: #ffe0a8; }
+
+  .acct-row {
+    display: flex; justify-content: space-between; gap: 16px;
+    padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13px;
+  }
+  .acct-row:last-child { border-bottom: none; }
+  .acct-row span:first-child { color: var(--muted-2); }
+
   @media (max-width: 900px) {
     .layout { flex-direction: column; }
     .filters { width: 100%; position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -237,9 +256,13 @@
       <option value="cents">¢/kWh</option>
     </select>
   </div>
+  <span id="licPill" class="pill" style="display:none"></span>
+  <button class="btn" id="btnAccount" style="display:none">Account</button>
   <button class="btn" id="btnData">Data</button>
   <button class="btn primary" id="btnImport">Import matrices</button>
 </div>
+
+<div id="licBanner" style="display:none"></div>
 
 <div class="layout">
   <aside class="filters">
@@ -394,11 +417,68 @@
   </div>
 </div>
 
+<!-- auth gate -->
+<div class="modal" id="authGate">
+  <div class="sheet" style="width:min(420px,100%)">
+    <header>
+      <div class="brand"><span class="dot"></span> Krova <small>Energy Matrix Tool</small></div>
+    </header>
+    <div class="body">
+      <form id="authForm">
+        <h2 id="authTitle" style="margin:0 0 16px;font-size:17px;font-weight:650">Sign in</h2>
+        <div id="authNotice" class="pill ok" style="display:none;margin-bottom:14px;white-space:normal;line-height:1.5"></div>
+        <div class="fgroup">
+          <label for="authEmail">Email</label>
+          <input id="authEmail" type="email" autocomplete="email" required />
+        </div>
+        <div class="fgroup">
+          <label for="authPassword">Password</label>
+          <input id="authPassword" type="password" autocomplete="current-password" required />
+        </div>
+        <div class="fgroup" id="authCompanyRow" style="display:none">
+          <label for="authCompany">Company <span class="muted">(optional)</span></label>
+          <input id="authCompany" type="text" autocomplete="organization" />
+        </div>
+        <div id="authError" class="hint" style="display:none;color:var(--danger);margin-bottom:12px"></div>
+        <button class="btn primary" id="authSubmit" type="submit" style="width:100%">Sign in</button>
+        <div class="hint" id="authTrialNote" style="display:none;margin-top:10px">
+          Starts a 14-day free trial. No card required.
+        </div>
+        <div class="hint" style="margin-top:14px;text-align:center">
+          <span id="authSwitchText">No account yet?</span>
+          <button type="button" class="btn ghost sm" id="authSwitch" style="border:0;color:var(--accent)">Start a free trial</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- account panel -->
+<div class="modal" id="accountModal">
+  <div class="sheet" style="width:min(520px,100%)">
+    <header>
+      <h2>Account</h2>
+      <div class="spacer"></div>
+      <button class="btn ghost sm" id="accountClose">Close</button>
+    </header>
+    <div class="body">
+      <div id="accountBody"></div>
+    </div>
+    <footer>
+      <button class="btn danger" id="btnSignOut" style="margin-right:auto">Sign out</button>
+      <button class="btn primary" id="accountDone">Done</button>
+    </footer>
+  </div>
+</div>
+
 <div id="dragveil">Drop matrix files to import</div>
 <div id="toast"></div>
 
+<script src="config.js"></script>
 <script src="vendor/xlsx.full.min.js"></script>
+<script src="vendor/supabase.js"></script>
 <script src="parser.js"></script>
+<script src="account.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
