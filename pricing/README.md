@@ -4,9 +4,13 @@ A daily desk tool for pricing customers off supplier matrix sheets. Drop in the
 day's matrices, filter to a customer, and read the terms across suppliers side
 by side.
 
-Everything runs in the browser. Matrix files are parsed locally and stored in
-IndexedDB, so supplier pricing is never uploaded anywhere and the portal keeps
-working offline once the page has loaded.
+Matrix files are parsed locally in the browser. Only the extracted prices sync
+to your account, so you reach the same pricing from any machine.
+
+Accounts are backed by Supabase. Every table is protected by row level
+security, so no account can read another's pricing — and the licence check is
+enforced by the database, not the browser: an expired account's writes are
+rejected by policy even if the front end is bypassed entirely.
 
 ## Daily workflow
 
@@ -71,18 +75,30 @@ the next daily drop of the same report parses correctly on its own.
 Sheets that are not price data — disclaimers, notes tabs — are rejected rather
 than guessed at, and are simply left unchecked.
 
+## Accounts and licensing
+
+Signing up starts a 14-day trial automatically — a database trigger creates the
+profile, licence and settings rows. **Account** shows the signed-in email,
+licence state and how much is stored.
+
+When a trial or licence lapses the portal stays usable read-only: existing
+pricing is still filterable and exportable, but imports are disabled and the
+header shows why. That split is enforced in the database — `SELECT` stays open
+while `INSERT`/`UPDATE` require a live licence via `has_active_license()`.
+
+Licences are deliberately read-only to the user. There is no update policy on
+the `licenses` table at all, so an account cannot extend its own trial from the
+browser. Changing a licence means updating that row from the Supabase dashboard
+or a server with the service role key.
+
 ## Data and backups
 
 **Data** lists everything loaded, with per-file delete.
 
-Pricing lives in this browser only. Clearing site data wipes it, so use
-**Export backup** before doing that or when moving to another machine;
-**Restore backup** reads the file back, including saved column mappings.
-
-If the portal is opened as a `file://` page rather than served over http, some
-browsers block IndexedDB. The portal still runs, but holds pricing in memory
-only and says so in the Data panel — export a backup or serve the folder over
-http to keep pricing between sessions.
+Pricing lives in your account, so signing in elsewhere brings it with you.
+Quote blobs are cached in this browser and only re-downloaded when the server
+copy changes, so returning is fast. **Export backup** still writes a local JSON
+copy if you want one outside the system.
 
 ## Running it
 
@@ -96,28 +112,52 @@ python3 -m http.server 8000
 # then open http://localhost:8000/pricing/
 ```
 
-Note that `/pricing/` is reachable by anyone who knows the URL when deployed —
-the page is marked `noindex`, but it is not access-controlled. No pricing data
-is exposed by the page itself (that lives only in each user's browser), but put
-the deployment behind password protection if the tool itself should be private.
+The page is now access-controlled: a signed-out visitor sees only the sign-in
+screen, and the anon key in `config.js` is public by design — it identifies the
+project and grants nothing on its own, since every table is behind RLS.
+
+Supabase settings worth knowing before selling access:
+
+- **Email confirmation** is on, which is what you want for open signup. The
+  built-in Supabase mailer is rate limited to a handful per hour, so configure
+  SMTP (Resend, Postmark, SendGrid) before real signups arrive or confirmation
+  emails will silently stop.
+- **Trial length** is set in the `handle_new_user` trigger (14 days).
+- **Granting a paid licence** is one update:
+  `update licenses set status='active', expires_at='2027-01-01' where user_id=...`
 
 ## Tests
 
 ```
-node pricing/test/parser.test.js
+node pricing/test/parser.test.js   # 92 assertions, offline
+node pricing/test/auth.test.js     # 23 assertions, needs the Supabase project
 ```
 
-Covers term and usage-band parsing, unit inference and conversion, filename
-metadata, all three layouts, header-row detection, merged-cell fill, rejection
-of prose sheets, and a round trip through a real `.xlsx` file.
+The parser tests cover term and usage-band parsing, unit inference and
+conversion, filename metadata, all three layouts, header-row detection,
+merged-cell fill, rejection of prose sheets, and a round trip through a real
+`.xlsx` file.
+
+The auth tests run against live Supabase through PostgREST with real signed-in
+user JWTs — the same path the browser takes — so what passes is what a real
+account can and cannot do. They cover signup provisioning, cross-account
+isolation in both directions, licence enforcement on writes, the read-only
+licence rule, and cascade deletes. They need two seeded users; see the file
+header.
 
 ## Layout
 
 ```
 pricing/
   index.html   markup and styles
-  app.js       storage, import review, mapping UI, pricing views
+  config.js    Supabase project URL and publishable key
+  account.js   auth screen, licence state, Supabase-backed storage
+  app.js       import review, mapping UI, pricing views
   parser.js    matrix detection and extraction (no DOM dependencies)
-  vendor/      SheetJS (Apache-2.0), full build for .xlsb support
-  test/        parser tests
+  vendor/      SheetJS (Apache-2.0) and supabase-js (MIT)
+  test/        parser and auth tests
 ```
+
+`account.js` exposes the same `all/put/del/clear` interface the portal used
+when this was a single-user IndexedDB app, which is why becoming multi-tenant
+needed almost no change in `app.js`.

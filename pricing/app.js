@@ -1,8 +1,9 @@
 /* Krova Pricing Portal — application logic
  *
- * Everything runs in the browser: matrices are parsed client-side and kept in
- * IndexedDB, so supplier pricing never leaves the machine and the portal works
- * offline once loaded.
+ * Matrices are still parsed entirely in the browser; only the extracted
+ * quotes are synced, per account, to Postgres behind row level security so a
+ * user reaches their pricing from any machine. Licence state is enforced in
+ * the database rather than here — this file only reflects it in the UI.
  */
 (function () {
   'use strict';
@@ -51,91 +52,11 @@
 
   /* ================= storage ================= */
 
-  var Store = (function () {
-    var NAME = 'krova-pricing', VER = 1;
-    var dbp = null, mem = null;
-    var KEYPATH = { sets: 'id', rows: 'setId', kv: 'k' };
-
-    function useMemory(reason) {
-      if (!mem) {
-        mem = { sets: {}, rows: {}, kv: {} };
-        Store.memoryOnly = true;
-        Store.memoryReason = reason || '';
-      }
-      return null;
-    }
-
-    function open() {
-      if (mem) return Promise.resolve(null);
-      if (dbp) return dbp;
-      dbp = new Promise(function (res, rej) {
-        var req;
-        try { req = indexedDB.open(NAME, VER); }
-        catch (e) { return rej(e); }
-        req.onupgradeneeded = function () {
-          var db = req.result;
-          Object.keys(KEYPATH).forEach(function (s) {
-            if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: KEYPATH[s] });
-          });
-        };
-        req.onsuccess = function () { res(req.result); };
-        req.onerror = function () { rej(req.error || new Error('indexedDB error')); };
-        req.onblocked = function () { rej(new Error('indexedDB blocked')); };
-      }).catch(function (e) { return useMemory(e && e.message); });
-      return dbp;
-    }
-
-    function all(name) {
-      return open().then(function (db) {
-        if (!db) return Object.keys(mem[name]).map(function (k) { return mem[name][k]; });
-        return new Promise(function (res, rej) {
-          var t = db.transaction(name, 'readonly');
-          var r = t.objectStore(name).getAll();
-          r.onsuccess = function () { res(r.result || []); };
-          r.onerror = function () { rej(r.error); };
-        });
-      });
-    }
-
-    function put(name, obj) {
-      return open().then(function (db) {
-        if (!db) { mem[name][obj[KEYPATH[name]]] = obj; return; }
-        return new Promise(function (res, rej) {
-          var t = db.transaction(name, 'readwrite');
-          t.objectStore(name).put(obj);
-          t.oncomplete = function () { res(); };
-          t.onerror = function () { rej(t.error); };
-          t.onabort = function () { rej(t.error || new Error('write aborted')); };
-        });
-      });
-    }
-
-    function del(name, key) {
-      return open().then(function (db) {
-        if (!db) { delete mem[name][key]; return; }
-        return new Promise(function (res, rej) {
-          var t = db.transaction(name, 'readwrite');
-          t.objectStore(name).delete(key);
-          t.oncomplete = function () { res(); };
-          t.onerror = function () { rej(t.error); };
-        });
-      });
-    }
-
-    function clear(name) {
-      return open().then(function (db) {
-        if (!db) { mem[name] = {}; return; }
-        return new Promise(function (res, rej) {
-          var t = db.transaction(name, 'readwrite');
-          t.objectStore(name).clear();
-          t.oncomplete = function () { res(); };
-          t.onerror = function () { rej(t.error); };
-        });
-      });
-    }
-
-    return { all: all, put: put, del: del, clear: clear, memoryOnly: false, memoryReason: '' };
-  })();
+  /* Storage is provided by account.js, backed by Supabase with row level
+   * security. It keeps the same all/put/del/clear shape the portal used when
+   * this was a single-user IndexedDB app, so nothing below had to change. */
+  var Store = window.KrovaStore;
+  var Account = window.KrovaAccount;
 
   /* ================= app state ================= */
 
@@ -790,12 +711,10 @@
         }).join('') + '</tbody></table></div>';
     }
 
-    var note = Store.memoryOnly
-      ? 'Browser storage is unavailable here' + (Store.memoryReason ? ' (' + esc(Store.memoryReason) + ')' : '') +
-        ', so pricing is held in memory only and will be lost on refresh. Serving this folder over http:// ' +
-        'instead of opening the file directly fixes it. Export a backup to keep your work.'
-      : 'Pricing is stored in this browser only — nothing is uploaded. Export a backup before clearing site data.';
-    $('storageNote').innerHTML = note;
+    $('storageNote').innerHTML =
+      'Matrix files are parsed on this machine; only the extracted prices sync to your account, ' +
+      'and row level security means no other account can read them. Blobs are cached locally, so ' +
+      'returning here only downloads what changed.';
   }
 
   function deleteSet(id) {
@@ -949,7 +868,58 @@
       .catch(function () {});
   }
 
+  /* ================= licence surfacing ================= */
+
+  /* The database is what actually enforces this — an expired account's writes
+   * are rejected by RLS whatever the browser believes. This only makes the
+   * state legible so the user is not surprised by a failed import. */
+  function applyLicense() {
+    var lic = Account.licenseState();
+    var pill = $('licPill');
+    pill.style.display = '';
+    pill.textContent = lic.label;
+    pill.className = 'pill' + (lic.ok ? (lic.trial ? '' : ' ok') : ' warn');
+
+    $('btnImport').disabled = !lic.ok;
+    $('btnImport').title = lic.ok ? '' : 'Your licence does not allow new imports.';
+    $('btnImport').style.opacity = lic.ok ? '' : '.5';
+    $('btnImport').style.cursor = lic.ok ? '' : 'not-allowed';
+
+    var banner = $('licBanner');
+    if (lic.ok) {
+      banner.style.display = 'none';
+    } else {
+      banner.style.display = '';
+      banner.innerHTML = '<b>' + esc(lic.label) + '.</b> ' + esc(lic.detail);
+    }
+    return lic;
+  }
+
+  function renderAccount() {
+    var lic = Account.licenseState();
+    var rows = [
+      ['Signed in as', Account.email()],
+      ['Company', Account.company() || '—'],
+      ['Licence', lic.label],
+      ['Status', lic.detail],
+      ['Price sets stored', num(app.sets.length)],
+      ['Quotes stored', num(app.quotes.length)]
+    ];
+    $('accountBody').innerHTML = rows.map(function (r) {
+      return '<div class="acct-row"><span>' + esc(r[0]) + '</span><span>' + esc(r[1]) + '</span></div>';
+    }).join('') +
+      '<div class="hint" style="margin-top:14px">Matrix files are parsed on this machine. ' +
+      'Only the extracted prices sync to your account, and no other account can read them.</div>';
+  }
+
   function bind() {
+    // account
+    $('btnAccount').onclick = function () { renderAccount(); openModal('accountModal'); };
+    $('accountClose').onclick = $('accountDone').onclick = function () { closeModal('accountModal'); };
+    $('btnSignOut').onclick = function () {
+      if (window.confirm('Sign out of the Energy Matrix Tool?')) Account.signOut();
+    };
+
     // top bar
     $('btnImport').onclick = function () { openModal('importModal'); renderImportList(); };
     $('btnData').onclick = function () { renderDataList(); openModal('dataModal'); };
@@ -1106,13 +1076,16 @@
     $('btnClearAll').onclick = clearAll;
 
     // close modals on backdrop click / escape
-    ['importModal', 'mapModal', 'dataModal'].forEach(function (id) {
+    ['importModal', 'mapModal', 'dataModal', 'accountModal'].forEach(function (id) {
       $(id).addEventListener('mousedown', function (e) {
         if (e.target === this) closeModal(id);
       });
     });
     window.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') ['importModal', 'mapModal', 'dataModal'].forEach(closeModal);
+      // authGate is deliberately excluded — it must not be dismissable
+      if (e.key === 'Escape') {
+        ['importModal', 'mapModal', 'dataModal', 'accountModal'].forEach(closeModal);
+      }
     });
   }
 
@@ -1123,9 +1096,28 @@
     render();
   }
 
+  /* Boot: gate on a session first, then pull that account's pricing. The auth
+   * screen stays up until a session resolves, so no portal chrome flashes for
+   * a signed-out visitor. */
+  document.body.classList.add('signed-out');
+  Account.bindAuthUi();
   bind();
-  loadAll().then(render).catch(function (e) {
-    toast('Could not load saved pricing: ' + e.message, true);
+
+  window.addEventListener('krova:signedin', function () {
+    $('btnAccount').style.display = '';
+    applyLicense();
+    loadAll().then(render).catch(function (e) {
+      toast('Could not load your pricing: ' + e.message, true);
+    });
+  });
+
+  Account.boot().then(function (user) {
+    if (!user) { render(); return null; }
+    $('btnAccount').style.display = '';
+    applyLicense();
+    return loadAll().then(render);
+  }).catch(function (e) {
+    toast('Could not load your pricing: ' + e.message, true);
     render();
   });
 })();
