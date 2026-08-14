@@ -281,6 +281,71 @@
     $('count').textContent = groups.length.toLocaleString() + ' quote lines · rates in ' + rateUnitLabel();
     $('view').innerHTML = '<div class="tablewrap"><table><thead>' + head +
       '</thead><tbody>' + body + '</tbody></table></div>';
+    renderBestCard(groups[0], f);
+  }
+
+  /* The cheapest line on screen, pulled out so the answer is readable without
+   * scanning the grid — and copyable, since the next thing a broker does with
+   * it is paste it into an email. */
+  function renderBestCard(top, f) {
+    var card = $('bestCard');
+    if (!top || !top.sweet) { card.className = ''; card.innerHTML = ''; return; }
+
+    var m = top.meta, s = top.sweet;
+    var rate = rateText(s.price);
+    var annual = f.usage !== null ? f.usage * effective(s.price) : null;
+    var total = annual !== null ? annual * (s.term / 12) : null;
+
+    var where = [m.utility, m.zone].filter(Boolean).join(' · ');
+    var what = [m.rateCode, bandLabel(m.usageMin, m.usageMax) + ' kWh'].filter(Boolean).join(' · ');
+
+    card.className = 'on';
+    card.innerHTML =
+      '<div>' +
+        '<div class="bc-label">Best available' + (s.isDip ? ' · curve dip' : '') + '</div>' +
+        '<div class="bc-rate">' + esc(rate) + ' <span class="muted" style="font-size:14px">' +
+          esc(rateUnitLabel()) + '</span></div>' +
+      '</div>' +
+      '<div class="grow bc-meta">' +
+        '<b>' + esc(m.supplier) + '</b> · ' + esc(s.term) + ' month<br />' +
+        esc(where || '—') + (what ? '<br />' + esc(what) : '') +
+      '</div>' +
+      (annual !== null
+        ? '<div class="bc-stat"><div class="hint" style="margin:0">Annual</div>' +
+          '<div class="v">' + money(annual) + '</div></div>' +
+          '<div class="bc-stat"><div class="hint" style="margin:0">Over ' + s.term + ' mo</div>' +
+          '<div class="v">' + money(total) + '</div></div>'
+        : '') +
+      '<button class="btn sm" id="bcCopy">Copy quote</button>';
+
+    $('bcCopy').onclick = function () {
+      var lines = [
+        m.supplier + ' — ' + s.term + ' month',
+        (where || '') + (what ? '  (' + what + ')' : ''),
+        'Rate: ' + rate + ' ' + rateUnitLabel() + (app.adder ? '  (includes ' + app.adder + ' mill adder)' : ''),
+        m.startMonth ? 'Start: ' + m.startMonth : '',
+        annual !== null ? 'Estimated annual cost: ' + money(annual) : '',
+        total !== null ? 'Over the term: ' + money(total) : '',
+        m.priceDate ? 'Priced ' + m.priceDate : ''
+      ].filter(Boolean);
+      var text = lines.join('\n');
+      var done = function () { toast('Quote copied to clipboard'); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text, done); });
+      } else { fallbackCopy(text, done); }
+    };
+  }
+
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); }
+    catch (e) { toast('Could not copy automatically.', true); }
+    document.body.removeChild(ta);
   }
 
   var ROW_COLS = [
@@ -296,6 +361,8 @@
   ];
 
   function renderRowsView(rows) {
+    $('bestCard').className = '';
+    $('bestCard').innerHTML = '';
     if (!rows.length) return renderEmpty();
 
     var sorted = rows.slice().sort(function (a, b) {
@@ -344,11 +411,14 @@
 
   function renderEmpty() {
     var hasData = app.quotes.length > 0;
+    $('bestCard').className = '';
+    $('bestCard').innerHTML = '';
     $('count').textContent = '0';
     $('view').innerHTML = '<div class="tablewrap"><div class="empty">' +
+      '<div class="mark">' + (hasData ? '&#9906;' : '&#8595;') + '</div>' +
       (hasData
         ? '<h3>Nothing matches these filters</h3><div>Loosen a filter, or reset them to start over.</div>'
-        : '<h3>No pricing loaded yet</h3><div>Import today&rsquo;s matrix files to begin.</div>') +
+        : '<h3>No pricing loaded yet</h3><div>Drop today&rsquo;s matrix files anywhere on this page to begin.</div>') +
       '</div></div>';
   }
 
