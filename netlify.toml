@@ -12,6 +12,23 @@
 # only when the path matches no existing file, and "/" already matches the
 # marketing site's index.html.
 
+# Netlify matches these rules on scheme as well as host, so the https rules
+# below do not fire for a plain http request. Until Netlify's own Force HTTPS
+# is active the domain would otherwise fall through to the marketing site, so
+# send http to https explicitly first. Once Force HTTPS is on this is
+# redundant but harmless — both paths produce the same redirect.
+[[redirects]]
+  from = "http://energymatrixtool.com/*"
+  to = "https://energymatrixtool.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "http://www.energymatrixtool.com/*"
+  to = "https://energymatrixtool.com/:splat"
+  status = 301
+  force = true
+
 # Canonicalise www onto the apex.
 [[redirects]]
   from = "https://www.energymatrixtool.com/*"
