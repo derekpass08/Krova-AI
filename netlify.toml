@@ -1,0 +1,39 @@
+# Netlify configuration for the Krova static site.
+#
+# Build settings are deliberately omitted so whatever is configured in the
+# Netlify UI keeps applying — this file only adds routing.
+#
+# energymatrixtool.com is a dedicated domain for the pricing portal, so it
+# serves /pricing at its root. krova-ai.netlify.app is untouched and keeps the
+# marketing site at / with the portal at /pricing, because these rules only
+# match the energymatrixtool.com host.
+#
+# force = true is required throughout: without it Netlify applies a redirect
+# only when the path matches no existing file, and "/" already matches the
+# marketing site's index.html.
+
+# Canonicalise www onto the apex.
+[[redirects]]
+  from = "https://www.energymatrixtool.com/*"
+  to = "https://energymatrixtool.com/:splat"
+  status = 301
+  force = true
+
+# Anyone typing /pricing on this domain would otherwise fall through to the
+# catch-all below and be rewritten to /pricing/pricing, which 404s. Fold it
+# back to the root so old links and muscle memory still land correctly.
+[[redirects]]
+  from = "https://energymatrixtool.com/pricing/*"
+  to = "https://energymatrixtool.com/:splat"
+  status = 301
+  force = true
+
+# Serve the portal at the root of this domain. status = 200 makes this an
+# internal rewrite, so the address bar keeps showing energymatrixtool.com
+# rather than redirecting to /pricing. The portal references its assets
+# relatively, so /app.js, /parser.js and /vendor/* resolve under the rewrite.
+[[redirects]]
+  from = "https://energymatrixtool.com/*"
+  to = "/pricing/:splat"
+  status = 200
+  force = true
