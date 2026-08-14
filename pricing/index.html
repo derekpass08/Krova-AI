@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Krova Pricing Portal</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2307100c'/%3E%3Cpath d='M9 23V9h3v6l6-6h4l-6 6 6 8h-4l-4-5.5L12 19v4z' fill='%23a7ff73'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    --bg: #050807;
+    --bg-2: #07100c;
+    --panel: #0c1712;
+    --panel-2: #101f18;
+    --line: #1b2f24;
+    --line-2: #24422f;
+    --text: #f5fff8;
+    --muted: #a7b5ad;
+    --muted-2: #76837b;
+    --accent: #a7ff73;
+    --accent-dim: #6fbb44;
+    --info: #75d7ff;
+    --warn: #ffca6b;
+    --danger: #ff8a7a;
+    --radius: 10px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--accent); }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 18px;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 40;
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -0.01em; }
+  .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+  .brand small { color: var(--muted-2); font-weight: 400; }
+  .spacer { flex: 1; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px;
+    background: var(--panel-2); border: 1px solid var(--line-2);
+    color: var(--muted); font-size: 12px; white-space: nowrap;
+  }
+  .pill.warn { color: var(--warn); border-color: #5a4520; background: #241c0d; }
+  .pill.ok { color: var(--accent); border-color: #2f5a1f; background: #12210c; }
+
+  .btn {
+    background: var(--panel-2); border: 1px solid var(--line-2);
+    color: var(--text); padding: 7px 13px; border-radius: 8px;
+    transition: background .12s, border-color .12s;
+  }
+  .btn:hover { background: #16301f; border-color: #35603f; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #05130a; font-weight: 600; }
+  .btn.primary:hover { background: #b6ff8c; }
+  .btn.ghost { background: transparent; }
+  .btn.sm { padding: 4px 9px; font-size: 12px; border-radius: 6px; }
+  .btn.danger:hover { border-color: #7a3227; background: #2a120e; color: var(--danger); }
+
+  /* ---------- layout ---------- */
+  .layout { display: flex; align-items: flex-start; min-height: calc(100vh - 57px); }
+  .filters {
+    width: 268px; flex: none; padding: 16px;
+    border-right: 1px solid var(--line);
+    background: var(--bg-2);
+    position: sticky; top: 57px; max-height: calc(100vh - 57px); overflow-y: auto;
+  }
+  .results { flex: 1; min-width: 0; padding: 16px 18px 60px; }
+
+  .fgroup { margin-bottom: 14px; }
+  .fgroup > label, .flabel {
+    display: block; font-size: 11px; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--muted-2); margin-bottom: 5px; font-weight: 600;
+  }
+  select, input[type=text], input[type=number], input[type=date] {
+    width: 100%; padding: 7px 9px;
+    background: var(--panel); border: 1px solid var(--line-2);
+    border-radius: 7px; outline: none;
+  }
+  select:focus, input:focus { border-color: var(--accent-dim); }
+  select[multiple] { height: auto; padding: 4px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip {
+    padding: 4px 9px; border-radius: 999px; font-size: 12px;
+    background: var(--panel); border: 1px solid var(--line-2); color: var(--muted);
+    user-select: none;
+  }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #05130a; font-weight: 600; }
+
+  .checklist { max-height: 168px; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 7px; background: var(--panel); }
+  .checklist label {
+    display: flex; align-items: center; gap: 8px; padding: 5px 9px;
+    font-size: 13px; cursor: pointer; border-bottom: 1px solid #0f1d15;
+  }
+  .checklist label:last-child { border-bottom: none; }
+  .checklist label:hover { background: var(--panel-2); }
+  .checklist input { accent-color: var(--accent); }
+
+  .hint { font-size: 11px; color: var(--muted-2); margin-top: 4px; line-height: 1.4; }
+
+  /* ---------- results ---------- */
+  .rhead { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 2px; background: var(--panel); border: 1px solid var(--line-2); border-radius: 8px; padding: 2px; }
+  .tabs button { background: transparent; border: 0; padding: 6px 14px; border-radius: 6px; color: var(--muted); font-size: 13px; }
+  .tabs button[aria-selected="true"] { background: var(--panel-2); color: var(--text); font-weight: 600; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 8px 11px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  thead th {
+    position: sticky; top: 0; background: var(--panel-2); z-index: 2;
+    font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+    border-bottom: 1px solid var(--line-2); font-weight: 600;
+  }
+  tbody tr:hover { background: #0f1d15; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); }
+  .price { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .best { color: var(--accent); font-weight: 700; }
+  .cell-sub { display: block; font-size: 11px; color: var(--muted-2); font-family: Inter, sans-serif; }
+  .muted { color: var(--muted-2); }
+  .badge {
+    display: inline-block; padding: 1px 7px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; font-family: Inter, sans-serif;
+    background: #12210c; color: var(--accent); border: 1px solid #2f5a1f;
+  }
+  .badge.dip { background: #0d2030; color: var(--info); border-color: #1d4664; }
+  .empty { padding: 48px 20px; text-align: center; color: var(--muted-2); }
+  .empty h3 { color: var(--muted); margin: 0 0 6px; font-size: 15px; }
+
+  /* ---------- modal ---------- */
+  .modal {
+    position: fixed; inset: 0; background: rgba(2,4,3,.78);
+    display: none; align-items: flex-start; justify-content: center;
+    z-index: 60; padding: 32px 16px; overflow-y: auto;
+    backdrop-filter: blur(3px);
+  }
+  .modal.open { display: flex; }
+  .sheet {
+    width: min(1080px, 100%); background: var(--bg-2);
+    border: 1px solid var(--line-2); border-radius: 14px;
+    box-shadow: 0 24px 70px rgba(0,0,0,.6);
+  }
+  .sheet header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 15px 20px; border-bottom: 1px solid var(--line);
+  }
+  .sheet header h2 { margin: 0; font-size: 16px; font-weight: 650; }
+  .sheet .body { padding: 20px; }
+  .sheet footer {
+    display: flex; gap: 10px; justify-content: flex-end;
+    padding: 14px 20px; border-top: 1px solid var(--line);
+  }
+
+  .filecard { border: 1px solid var(--line-2); border-radius: 10px; margin-bottom: 14px; background: var(--panel); }
+  .filecard > .fc-head { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .filecard .fname { font-weight: 600; font-size: 13px; }
+  .fc-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; padding: 12px 14px; }
+  .sheetrow { display: flex; gap: 10px; align-items: center; padding: 9px 14px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .sheetrow .sname { font-weight: 600; font-size: 13px; min-width: 130px; }
+  .sheetrow .sinfo { font-size: 12px; color: var(--muted-2); flex: 1; min-width: 180px; }
+  .status-ok { color: var(--accent); }
+  .status-bad { color: var(--warn); }
+
+  .maptable { max-height: 320px; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 8px; }
+  .maptable table { font-size: 12px; }
+  .maptable td { padding: 5px 9px; }
+  .maptable select { padding: 4px 6px; font-size: 12px; }
+  .preview { margin-top: 14px; }
+  .preview table { font-size: 12px; }
+
+  .dropzone {
+    border: 2px dashed var(--line-2); border-radius: 12px;
+    padding: 34px; text-align: center; color: var(--muted);
+    background: var(--panel); transition: border-color .15s, background .15s;
+  }
+  .dropzone.hot { border-color: var(--accent); background: #0f1d15; }
+
+  #dragveil {
+    position: fixed; inset: 0; z-index: 90; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(5,8,7,.9); border: 3px dashed var(--accent);
+    font-size: 19px; color: var(--accent); font-weight: 600;
+  }
+  #dragveil.on { display: flex; }
+
+  #toast {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    background: var(--panel-2); border: 1px solid var(--line-2);
+    padding: 10px 18px; border-radius: 999px; z-index: 100;
+    display: none; box-shadow: 0 10px 30px rgba(0,0,0,.5); font-size: 13px;
+  }
+  #toast.on { display: block; }
+  #toast.bad { border-color: #7a3227; color: var(--danger); }
+
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1; min-width: 0; }
+  details.legend { margin-top: 14px; font-size: 12px; color: var(--muted-2); }
+  details.legend summary { cursor: pointer; color: var(--muted); }
+  details.legend p { margin: 8px 0 0; line-height: 1.55; }
+
+  @media (max-width: 900px) {
+    .layout { flex-direction: column; }
+    .filters { width: 100%; position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="dot"></span> Krova <small>Pricing Portal</small></div>
+  <span id="datePill" class="pill">No pricing loaded</span>
+  <div class="spacer"></div>
+  <div class="row">
+    <label class="flabel" style="margin:0 4px 0 0">Adder</label>
+    <input id="adder" type="number" step="0.1" value="0" style="width:74px" title="Your margin in mills/kWh (1 mill = $0.001)" />
+    <span class="muted" style="font-size:12px">mills</span>
+    <select id="dispUnit" style="width:96px" title="Display unit">
+      <option value="usd">$/kWh</option>
+      <option value="cents">¢/kWh</option>
+    </select>
+  </div>
+  <button class="btn" id="btnData">Data</button>
+  <button class="btn primary" id="btnImport">Import matrices</button>
+</div>
+
+<div class="layout">
+  <aside class="filters">
+    <div class="fgroup">
+      <label for="fState">State</label>
+      <select id="fState"><option value="">All states</option></select>
+    </div>
+    <div class="fgroup">
+      <label for="fUtility">Utility</label>
+      <select id="fUtility"><option value="">All utilities</option></select>
+    </div>
+    <div class="fgroup">
+      <label for="fZone">Zone</label>
+      <select id="fZone"><option value="">All zones</option></select>
+    </div>
+    <div class="fgroup">
+      <label for="fRate">Rate code</label>
+      <select id="fRate"><option value="">All rate codes</option></select>
+    </div>
+    <div class="fgroup">
+      <label for="fUsage">Annual usage (kWh)</label>
+      <input id="fUsage" type="number" placeholder="e.g. 120000" />
+      <div class="hint">Matches the usage band each price applies to.</div>
+    </div>
+    <div class="fgroup">
+      <label for="fStart">Start month</label>
+      <select id="fStart"><option value="">All start months</option></select>
+    </div>
+    <div class="fgroup">
+      <span class="flabel">Terms</span>
+      <div class="chips" id="fTerms"></div>
+      <div class="hint">Core terms always show. Toggle to add others.</div>
+    </div>
+    <div class="fgroup">
+      <span class="flabel">Suppliers</span>
+      <div class="checklist" id="fSuppliers"></div>
+    </div>
+    <div class="fgroup">
+      <label for="fMaxPrice" id="lblMaxPrice">Max rate ($/kWh)</label>
+      <input id="fMaxPrice" type="number" step="0.01" placeholder="no limit" />
+    </div>
+    <button class="btn ghost" id="btnReset" style="width:100%">Reset filters</button>
+
+    <details class="legend">
+      <summary>How the sweet spot is picked</summary>
+      <p><b>Sweet spot</b> is the lowest rate across every term available for that
+      line — not just 12/24/36/48/60. If it is also cheaper than the next shorter
+      <i>and</i> next longer term, it is a genuine dip in the curve and gets a
+      <span class="badge dip">dip</span> flag: that is the term worth pitching.</p>
+    </details>
+  </aside>
+
+  <section class="results">
+    <div class="rhead">
+      <div class="tabs" role="tablist">
+        <button id="tabQuote" role="tab" aria-selected="true">Quote</button>
+        <button id="tabRows" role="tab" aria-selected="false">All rows</button>
+      </div>
+      <span id="count" class="pill">—</span>
+      <div class="spacer"></div>
+      <button class="btn sm" id="btnCsv">Export CSV</button>
+    </div>
+    <div id="view"></div>
+  </section>
+</div>
+
+<!-- import modal -->
+<div class="modal" id="importModal">
+  <div class="sheet">
+    <header>
+      <h2>Import matrices</h2>
+      <div class="spacer"></div>
+      <button class="btn ghost sm" id="importClose">Close</button>
+    </header>
+    <div class="body">
+      <div class="dropzone" id="dropzone">
+        <div style="font-size:15px;margin-bottom:6px">Drop matrix files here</div>
+        <div class="muted" style="font-size:12px;margin-bottom:12px">.xlsx · .xlsb · .xlsm · .xls · .csv — parsed in your browser, nothing is uploaded</div>
+        <button class="btn" id="pickBtn">Choose files</button>
+        <input id="fileInput" type="file" multiple accept=".xlsx,.xlsb,.xlsm,.xls,.csv" style="display:none" />
+      </div>
+      <div id="importList" style="margin-top:16px"></div>
+    </div>
+    <footer>
+      <span id="importSummary" class="muted" style="margin-right:auto;font-size:12px"></span>
+      <button class="btn ghost" id="importCancel">Cancel</button>
+      <button class="btn primary" id="importConfirm" disabled>Load pricing</button>
+    </footer>
+  </div>
+</div>
+
+<!-- column mapping modal -->
+<div class="modal" id="mapModal">
+  <div class="sheet">
+    <header>
+      <h2>Map columns</h2>
+      <span id="mapSheetName" class="pill"></span>
+      <div class="spacer"></div>
+      <button class="btn ghost sm" id="mapClose">Close</button>
+    </header>
+    <div class="body">
+      <div class="row" style="margin-bottom:14px">
+        <div>
+          <span class="flabel">Header row</span>
+          <input id="mapHeaderRow" type="number" min="1" style="width:88px" />
+        </div>
+        <div>
+          <span class="flabel">Price unit</span>
+          <select id="mapUnit" style="width:190px"></select>
+        </div>
+        <div>
+          <span class="flabel">Layout</span>
+          <select id="mapLayout" style="width:170px">
+            <option value="wide">Wide (a column per term)</option>
+            <option value="long">Long (term + price columns)</option>
+          </select>
+        </div>
+      </div>
+      <div class="maptable" id="mapTable"></div>
+      <div class="preview" id="mapPreview"></div>
+    </div>
+    <footer>
+      <span id="mapStatus" class="muted" style="margin-right:auto;font-size:12px"></span>
+      <button class="btn ghost" id="mapCancel">Cancel</button>
+      <button class="btn primary" id="mapSave">Save mapping</button>
+    </footer>
+  </div>
+</div>
+
+<!-- data manager modal -->
+<div class="modal" id="dataModal">
+  <div class="sheet">
+    <header>
+      <h2>Loaded pricing</h2>
+      <div class="spacer"></div>
+      <button class="btn ghost sm" id="dataClose">Close</button>
+    </header>
+    <div class="body">
+      <div id="dataList"></div>
+      <div class="row" style="margin-top:16px">
+        <button class="btn sm" id="btnBackup">Export backup (.json)</button>
+        <button class="btn sm" id="btnRestore">Restore backup</button>
+        <input id="restoreInput" type="file" accept=".json" style="display:none" />
+        <div class="spacer"></div>
+        <button class="btn sm danger" id="btnClearAll">Delete everything</button>
+      </div>
+      <div class="hint" id="storageNote" style="margin-top:12px"></div>
+    </div>
+    <footer>
+      <button class="btn primary" id="dataDone">Done</button>
+    </footer>
+  </div>
+</div>
+
+<div id="dragveil">Drop matrix files to import</div>
+<div id="toast"></div>
+
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="parser.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
