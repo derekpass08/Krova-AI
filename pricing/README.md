@@ -29,6 +29,11 @@ today, so a stale sheet is obvious before it gets quoted.
 
 ## Pricing a customer
 
+A card above the table calls out the single cheapest line for the current
+filters — rate, supplier, term, annual cost and cost over the term — with
+**Copy quote** to put a formatted summary on the clipboard, since pasting into
+an email is usually the next thing that happens.
+
 The **Quote** tab groups prices into one line per supplier / utility / rate
 code / usage band, with a column per term. **All rows** is the flat table
 behind it, sortable by any column.
