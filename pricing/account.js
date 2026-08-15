@@ -1,9 +1,9 @@
-/* Krova Energy Matrix Tool — accounts, licensing and synced storage.
+/* Pinnacle Energy Matrix Tool — accounts, licensing and synced storage.
  *
  * Exposes two things to app.js:
  *
- *   window.KrovaAccount  session, licence state, and the auth screen
- *   window.KrovaStore    the same all/put/del/clear interface the portal
+ *   window.PinnacleAccount  session, licence state, and the auth screen
+ *   window.PinnacleStore    the same all/put/del/clear interface the portal
  *                        already used for IndexedDB, backed by Supabase
  *
  * Keeping the store interface identical means the portal's own logic did not
@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var cfg = window.KROVA_CONFIG;
+  var cfg = window.PINNACLE_CONFIG;
   var sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, {
     auth: { persistSession: true, autoRefreshToken: true }
   });
@@ -32,7 +32,7 @@
   /* ================= local blob cache ================= */
 
   var Cache = (function () {
-    var NAME = 'krova-cache', VER = 1, dbp = null, dead = false;
+    var NAME = 'pinnacle-cache', VER = 1, dbp = null, dead = false;
 
     function open() {
       if (dead) return Promise.resolve(null);
@@ -333,9 +333,79 @@
   }
 
   var mode = 'signin';
+  var pendingEmail = '';
+
+  /* Where the confirmation link should land. Whatever this returns must also be
+   * listed under Redirect URLs in the Supabase dashboard, or Auth rejects it. */
+  function confirmTarget() {
+    return window.location.origin + window.location.pathname + '?confirmed=1';
+  }
+
+  function showVerifySent(email) {
+    pendingEmail = email;
+    el('verifyEmail').textContent = email;
+    el('authForm').style.display = 'none';
+    el('verifySent').style.display = '';
+  }
+
+  function hideVerifySent() {
+    el('verifySent').style.display = 'none';
+    el('authForm').style.display = '';
+  }
+
+  function resendConfirmation() {
+    if (!pendingEmail) return;
+    var btn = el('verifyResend');
+    btn.disabled = true;
+    btn.textContent = 'Sending\u2026';
+    sb.auth.resend({ type: 'signup', email: pendingEmail,
+                     options: { emailRedirectTo: confirmTarget() } })
+      .then(function (r) {
+        btn.disabled = false;
+        btn.textContent = 'Resend the email';
+        if (r.error) {
+          notice(r.error.message, true);
+        } else {
+          notice('Sent again to ' + pendingEmail + '.');
+        }
+      });
+  }
+
+  function notice(msg, bad) {
+    var n = el('authNotice');
+    n.textContent = msg;
+    n.className = 'pill ' + (bad ? 'warn' : 'ok');
+    n.style.display = msg ? 'block' : 'none';
+  }
+
+  /* Coming back from a confirmation link: Supabase appends its own params, and
+   * we add ?confirmed=1. Greet them and get them straight into sign-in rather
+   * than dropping them on an unexplained blank form. */
+  function handleConfirmationReturn() {
+    var qs = window.location.search || '';
+    var hash = window.location.hash || '';
+    var confirmed = /[?&]confirmed=1/.test(qs);
+    var errored = /error_description=|error=/.test(qs + hash);
+
+    if (errored) {
+      var m = decodeURIComponent(
+        ((qs + '&' + hash.replace('#', '&')).match(/error_description=([^&]*)/) || [, ''])[1]
+      ).replace(/\+/g, ' ');
+      notice(m || 'That confirmation link is no longer valid. Request a new one below.', true);
+    } else if (confirmed) {
+      notice('Email confirmed. Sign in to start your trial.');
+    }
+
+    if (confirmed || errored) {
+      // strip the auth noise so a refresh does not replay it
+      window.history.replaceState({}, document.title,
+        window.location.origin + window.location.pathname);
+    }
+  }
 
   function setMode(m) {
     mode = m;
+    hideVerifySent();
     el('authTitle').textContent = m === 'signup' ? 'Create your account' : 'Sign in';
     el('authSubmit').textContent = m === 'signup' ? 'Create account' : 'Sign in';
     el('authSwitchText').textContent = m === 'signup' ? 'Already have an account?' : 'No account yet?';
@@ -343,7 +413,6 @@
     el('authCompanyRow').style.display = m === 'signup' ? '' : 'none';
     el('authTrialNote').style.display = m === 'signup' ? '' : 'none';
     authError('');
-    el('authNotice').style.display = 'none';
   }
 
   function submitAuth() {
@@ -359,8 +428,14 @@
 
     authBusy(true, mode === 'signup' ? 'Creating…' : 'Signing in…');
 
+    /* Supabase falls back to the project's Site URL when no redirect is named,
+     * and that defaults to localhost — which would send every confirmation
+     * link somewhere the user cannot reach. Name it explicitly. */
     var p = mode === 'signup'
-      ? sb.auth.signUp({ email: email, password: pass, options: { data: { company: company } } })
+      ? sb.auth.signUp({
+          email: email, password: pass,
+          options: { data: { company: company }, emailRedirectTo: confirmTarget() }
+        })
       : sb.auth.signInWithPassword({ email: email, password: pass });
 
     p.then(function (r) {
@@ -368,15 +443,12 @@
       if (r.error) { authError(r.error.message); return; }
       if (mode === 'signup' && !(r.data && r.data.session)) {
         // email confirmation is on, so there is no session yet
-        el('authNotice').textContent =
-          'Account created. Check ' + email + ' for a confirmation link, then sign in.';
-        el('authNotice').style.display = 'block';
-        setMode('signin');
+        showVerifySent(email);
         return;
       }
       return boot().then(function (u) {
         // app.js listens for this to pull the account's pricing
-        if (u) window.dispatchEvent(new CustomEvent('krova:signedin'));
+        if (u) window.dispatchEvent(new CustomEvent('pinnacle:signedin'));
       });
     }).catch(function (e) {
       authBusy(false);
@@ -403,7 +475,7 @@
     });
   }
 
-  window.KrovaAccount = {
+  window.PinnacleAccount = {
     client: sb,
     state: state,
     licenseState: licenseState,
@@ -419,9 +491,25 @@
       el('authSubmit').onclick = submitAuth;
       el('authSwitch').onclick = function () { setMode(mode === 'signup' ? 'signin' : 'signup'); };
       el('authForm').onsubmit = function (e) { e.preventDefault(); submitAuth(); };
+
+      // reveal control — typing a password you cannot read is a real problem,
+      // especially on a phone keyboard
+      el('pwToggle').onclick = function () {
+        var f = el('authPassword');
+        var show = f.type === 'password';
+        f.type = show ? 'text' : 'password';
+        this.textContent = show ? 'Hide' : 'Show';
+        this.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        f.focus();
+      };
+
+      el('verifyResend').onclick = resendConfirmation;
+      el('verifyBack').onclick = function () { hideVerifySent(); setMode('signin'); };
+
       setMode('signin');
+      handleConfirmationReturn();
     }
   };
 
-  window.KrovaStore = Store;
+  window.PinnacleStore = Store;
 })();

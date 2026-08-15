@@ -1,4 +1,4 @@
-# Krova Pricing Portal
+# Pinnacle Pricing Portal
 
 A daily desk tool for pricing customers off supplier matrix sheets. Drop in the
 day's matrices, filter to a customer, and read the terms across suppliers side
@@ -121,15 +121,53 @@ The page is now access-controlled: a signed-out visitor sees only the sign-in
 screen, and the anon key in `config.js` is public by design — it identifies the
 project and grants nothing on its own, since every table is behind RLS.
 
-Supabase settings worth knowing before selling access:
+## Supabase setup that lives outside this repo
 
-- **Email confirmation** is on, which is what you want for open signup. The
-  built-in Supabase mailer is rate limited to a handful per hour, so configure
-  SMTP (Resend, Postmark, SendGrid) before real signups arrive or confirmation
-  emails will silently stop.
+Three settings are dashboard-only. The first is required — signup confirmation
+is broken without it.
+
+**1. URL configuration** (Authentication → URL Configuration)
+
+Supabase defaults the Site URL to `http://localhost:3000`, and that is where
+confirmation links point when nothing else is specified. Set:
+
+| Field | Value |
+| --- | --- |
+| Site URL | `https://energymatrixtool.com` |
+| Redirect URLs | `https://energymatrixtool.com/**` |
+
+The signup call passes `emailRedirectTo` explicitly so the link returns to
+`/?confirmed=1`, but Auth only honours a redirect that matches the allow list —
+hence the wildcard entry.
+
+**2. Email template** (Authentication → Emails → Confirm signup)
+
+Paste `pricing/email-templates/confirm-signup.html`. Subject:
+*Confirm your email to start your Pinnacle trial*.
+
+**3. SMTP** (Project Settings → Authentication → SMTP)
+
+The built-in mailer is rate limited to a handful of messages per hour and is
+explicitly not for production. Configure Resend, Postmark or SendGrid before
+real signups arrive, or confirmation emails will silently stop being delivered.
+
+Also worth knowing:
+
 - **Trial length** is set in the `handle_new_user` trigger (14 days).
 - **Granting a paid licence** is one update:
   `update licenses set status='active', expires_at='2027-01-01' where user_id=...`
+
+## What a new user sees
+
+1. Signs up → the form is replaced by a **Check your inbox** panel naming the
+   address, with a resend button and a note about spam.
+2. Opens the email → a branded confirmation with the trial terms, not a bare
+   link.
+3. Clicks confirm → lands back on the portal at `/?confirmed=1`, which shows
+   **Email confirmed. Sign in to start your trial.** and clears the auth
+   parameters from the URL so a refresh does not replay them.
+4. An expired or reused link is caught too, and says so rather than failing
+   silently.
 
 ## Tests
 

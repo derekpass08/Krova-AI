@@ -1,0 +1,146 @@
+<!-- Pinnacle — signup confirmation email.
+
+     Paste into Supabase → Authentication → Emails → "Confirm signup".
+     Subject line: Confirm your email to start your Pinnacle trial
+
+     Table layout with inline styles on purpose: Outlook ignores <style>
+     blocks and most flexbox/grid, so anything structural has to be a table
+     and anything visual has to be an inline attribute to survive.
+
+     Light background rather than the tool's black: dark-background email
+     renders unpredictably across clients, and several invert it anyway.
+
+     Supabase substitutes {{ .ConfirmationURL }} and {{ .Email }}.
+-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background:#f4f4f5;margin:0;padding:32px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+             style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+
+        <!-- brand bar -->
+        <tr>
+          <td style="background:#0a0a0b;padding:22px 34px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding-right:10px;">
+                  <div style="width:10px;height:10px;border-radius:3px;background:#ff7a18;"></div>
+                </td>
+                <td style="color:#ffffff;font-size:16px;font-weight:600;letter-spacing:-.02em;">
+                  Pinnacle
+                  <span style="color:#71717a;font-weight:400;">&nbsp;Energy Matrix Tool</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- body -->
+        <tr>
+          <td style="padding:38px 34px 8px;">
+            <h1 style="margin:0 0 16px;font-size:23px;line-height:1.3;font-weight:650;color:#0a0a0b;letter-spacing:-.02em;">
+              Confirm your email to get started
+            </h1>
+            <p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#3f3f46;">
+              Welcome to Pinnacle. You&rsquo;re one click away from pricing every
+              supplier&rsquo;s matrix in seconds instead of afternoons.
+            </p>
+            <p style="margin:0 0 26px;font-size:15px;line-height:1.65;color:#3f3f46;">
+              Confirm the address <strong style="color:#0a0a0b;">{{ .Email }}</strong>
+              and your <strong style="color:#0a0a0b;">14-day free trial</strong> starts
+              immediately. No card required.
+            </p>
+          </td>
+        </tr>
+
+        <!-- call to action -->
+        <tr>
+          <td style="padding:0 34px 30px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td align="center" bgcolor="#ff7a18" style="border-radius:9px;">
+                  <a href="{{ .ConfirmationURL }}"
+                     style="display:block;padding:14px 24px;font-size:15px;font-weight:600;
+                            color:#1a0c02;text-decoration:none;border-radius:9px;">
+                    Confirm my email
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- what they get -->
+        <tr>
+          <td style="padding:0 34px 8px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                   style="background:#fafafa;border:1px solid #ececee;border-radius:11px;">
+              <tr>
+                <td style="padding:20px 22px;">
+                  <p style="margin:0 0 14px;font-size:11px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:#71717a;">
+                    What&rsquo;s waiting for you
+                  </p>
+
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td valign="top" width="22" style="color:#ff7a18;font-size:14px;font-weight:700;padding-bottom:11px;">&bull;</td>
+                      <td style="font-size:14px;line-height:1.55;color:#3f3f46;padding-bottom:11px;">
+                        <strong style="color:#0a0a0b;">Drop in the day&rsquo;s sheets.</strong>
+                        Any supplier, any layout &mdash; read automatically.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td valign="top" width="22" style="color:#ff7a18;font-size:14px;font-weight:700;padding-bottom:11px;">&bull;</td>
+                      <td style="font-size:14px;line-height:1.55;color:#3f3f46;padding-bottom:11px;">
+                        <strong style="color:#0a0a0b;">Every term side by side.</strong>
+                        12 through 60 across suppliers, cheapest highlighted.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td valign="top" width="22" style="color:#ff7a18;font-size:14px;font-weight:700;">&bull;</td>
+                      <td style="font-size:14px;line-height:1.55;color:#3f3f46;">
+                        <strong style="color:#0a0a0b;">Find the sweet spot.</strong>
+                        Off-cycle terms that beat all five core ones, flagged for you.
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- fallback link: some clients strip button hrefs -->
+        <tr>
+          <td style="padding:24px 34px 0;">
+            <p style="margin:0 0 7px;font-size:12px;color:#71717a;line-height:1.6;">
+              If the button doesn&rsquo;t work, paste this into your browser:
+            </p>
+            <p style="margin:0;font-size:12px;line-height:1.6;word-break:break-all;">
+              <a href="{{ .ConfirmationURL }}" style="color:#c95a08;">{{ .ConfirmationURL }}</a>
+            </p>
+          </td>
+        </tr>
+
+        <!-- footer -->
+        <tr>
+          <td style="padding:26px 34px 30px;">
+            <div style="border-top:1px solid #ececee;padding-top:18px;">
+              <p style="margin:0;font-size:12px;line-height:1.65;color:#a1a1aa;">
+                This link expires in 24 hours. If you didn&rsquo;t sign up for
+                Pinnacle, you can ignore this email &mdash; no account will be
+                created and nothing further will be sent.
+              </p>
+            </div>
+          </td>
+        </tr>
+
+      </table>
+
+      <p style="margin:18px 0 0;font-size:11px;color:#a1a1aa;">
+        Pinnacle Energy &middot; energymatrixtool.com
+      </p>
+    </td>
+  </tr>
+</table>
