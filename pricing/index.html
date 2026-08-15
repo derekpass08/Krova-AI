@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
-<title>Krova Pricing Portal</title>
+<title>Pinnacle Pricing Portal</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0a0b'/%3E%3Cpath d='M9 23V9h3v6l6-6h4l-6 6 6 8h-4l-4-5.5L12 19v4z' fill='%23ff7a18'/%3E%3C/svg%3E" />
 <style>
   /* ============================================================
@@ -55,7 +55,34 @@
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
-  button, input, select { font: inherit; color: inherit; }
+  button, select { font: inherit; color: inherit; }
+  input { font: inherit; color: var(--text); caret-color: var(--accent); }
+
+  /* Chrome paints its own near-white background on autofilled fields, which
+     against white text made typed passwords invisible. Force our own surface
+     and text colour, and stall the transition so Chrome cannot repaint over
+     it. -webkit-text-fill-color is what actually wins here; `color` does not. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-text-fill-color: var(--text);
+    -webkit-box-shadow: 0 0 0 1000px var(--panel) inset;
+    box-shadow: 0 0 0 1000px var(--panel) inset;
+    caret-color: var(--accent);
+    transition: background-color 9999s ease-in-out 0s;
+  }
+
+  /* password field with a reveal control */
+  .pw-wrap { position: relative; }
+  .pw-wrap input { padding-right: 62px; }
+  .pw-toggle {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    background: transparent; border: 0; padding: 5px 9px; border-radius: 6px;
+    color: var(--muted); font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .06em;
+  }
+  .pw-toggle:hover { color: var(--accent); background: var(--accent-soft); }
   button { cursor: pointer; }
   a { color: var(--accent); }
   ::selection { background: var(--accent-glow); color: #fff; }
@@ -374,6 +401,13 @@
   .auth-form { padding: 38px 34px; }
   .auth-form h2 { margin: 0 0 20px; font-size: 19px; font-weight: 650; letter-spacing: -.02em; }
 
+  .verify-mark {
+    width: 46px; height: 46px; border-radius: 13px; margin-bottom: 18px;
+    background: var(--accent-soft); border: 1px solid var(--accent-line);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--accent); font-size: 21px;
+  }
+
   @media (max-width: 760px) {
     .auth-split { grid-template-columns: 1fr; }
     .auth-pitch { display: none; }
@@ -403,7 +437,7 @@
 <body>
 
 <div class="topbar">
-  <div class="brand"><span class="dot"></span> Krova <small>Pricing Portal</small></div>
+  <div class="brand"><span class="dot"></span> Pinnacle <small>Pricing Portal</small></div>
   <span id="datePill" class="pill">No pricing loaded</span>
   <div class="spacer"></div>
   <div class="row">
@@ -582,7 +616,7 @@
   <div class="sheet">
     <div class="auth-split">
       <div class="auth-pitch">
-        <div class="brand"><span class="dot"></span> Krova <small>Energy Matrix Tool</small></div>
+        <div class="brand"><span class="dot"></span> Pinnacle <small>Energy Matrix Tool</small></div>
         <h3>Every supplier&rsquo;s matrix,<br />priced in seconds.</h3>
         <ul>
           <li><span class="tick">&#10003;</span><span><b>Drop in the day&rsquo;s sheets.</b> Any layout, any supplier &mdash; parsed automatically, in your browser.</span></li>
@@ -592,6 +626,27 @@
         </ul>
       </div>
       <div class="auth-form">
+        <div id="verifySent" style="display:none">
+          <div class="verify-mark">&#9993;</div>
+          <h2 style="margin:0 0 10px">Check your inbox</h2>
+          <p style="margin:0 0 6px;color:var(--muted);font-size:13px;line-height:1.6">
+            We sent a confirmation link to
+          </p>
+          <p style="margin:0 0 18px;font-weight:600;font-size:14px" id="verifyEmail"></p>
+          <p style="margin:0 0 20px;color:var(--muted);font-size:13px;line-height:1.6">
+            Click the link in that email to activate your account. You&rsquo;ll be
+            brought straight back here to sign in. Your 14-day trial starts the
+            moment you do.
+          </p>
+          <div class="hint" style="margin:0 0 18px">
+            Nothing after a minute or two? Check spam &mdash; confirmation mail
+            sometimes lands there on the first send.
+          </div>
+          <button class="btn" id="verifyResend" style="width:100%">Resend the email</button>
+          <div class="hint" style="margin-top:14px;text-align:center">
+            <button type="button" class="btn ghost sm" id="verifyBack" style="border:0;color:var(--accent);font-weight:600">Back to sign in</button>
+          </div>
+        </div>
         <form id="authForm">
           <h2 id="authTitle">Sign in</h2>
           <div id="authNotice" class="pill ok" style="display:none;margin-bottom:16px;white-space:normal;line-height:1.5"></div>
@@ -601,7 +656,10 @@
           </div>
           <div class="fgroup">
             <label for="authPassword">Password</label>
-            <input id="authPassword" type="password" autocomplete="current-password" required />
+            <div class="pw-wrap">
+              <input id="authPassword" type="password" autocomplete="current-password" required />
+              <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password">Show</button>
+            </div>
           </div>
           <div class="fgroup" id="authCompanyRow" style="display:none">
             <label for="authCompany">Company <span class="muted">(optional)</span></label>

@@ -17,7 +17,7 @@ var fs = require('fs');
 global.window = global.window || {};
 global.self = global.window;
 eval(fs.readFileSync(path.join(__dirname, '..', 'config.js'), 'utf8'));
-var cfg = global.window.KROVA_CONFIG;
+var cfg = global.window.PINNACLE_CONFIG;
 
 (0, eval)(fs.readFileSync(path.join(__dirname, '..', 'vendor', 'supabase.js'), 'utf8'));
 var createClient = globalThis.supabase.createClient;

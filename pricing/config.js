@@ -8,7 +8,7 @@
  * Never put the service_role key here. That one bypasses RLS entirely and
  * belongs only on a server.
  */
-window.KROVA_CONFIG = {
+window.PINNACLE_CONFIG = {
   supabaseUrl: 'https://hcwfccpahhczihovphna.supabase.co',
   supabaseKey: 'sb_publishable_znYmG3h7zqZFCOGUq0COBw_XAGyaDM7',
   trialDays: 14

@@ -1,4 +1,4 @@
-/* Krova Pricing Portal — application logic
+/* Pinnacle Pricing Portal — application logic
  *
  * Matrices are still parsed entirely in the browser; only the extracted
  * quotes are synced, per account, to Postgres behind row level security so a
@@ -55,8 +55,8 @@
   /* Storage is provided by account.js, backed by Supabase with row level
    * security. It keeps the same all/put/del/clear shape the portal used when
    * this was a single-user IndexedDB app, so nothing below had to change. */
-  var Store = window.KrovaStore;
-  var Account = window.KrovaAccount;
+  var Store = window.PinnacleStore;
+  var Account = window.PinnacleAccount;
 
   /* ================= app state ================= */
 
@@ -806,7 +806,7 @@
         mappings: app.mappings,
         settings: { adder: app.adder, dispUnit: app.dispUnit }
       };
-      download('krova-pricing-backup-' + new Date().toISOString().slice(0, 10) + '.json',
+      download('pinnacle-pricing-backup-' + new Date().toISOString().slice(0, 10) + '.json',
         JSON.stringify(payload), 'application/json');
     });
   }
@@ -888,7 +888,7 @@
       });
     }
 
-    download('krova-pricing-' + new Date().toISOString().slice(0, 10) + '.csv',
+    download('pinnacle-pricing-' + new Date().toISOString().slice(0, 10) + '.csv',
       lines.join('\r\n'), 'text/csv;charset=utf-8');
   }
 
@@ -1173,7 +1173,7 @@
   Account.bindAuthUi();
   bind();
 
-  window.addEventListener('krova:signedin', function () {
+  window.addEventListener('pinnacle:signedin', function () {
     $('btnAccount').style.display = '';
     applyLicense();
     loadAll().then(render).catch(function (e) {

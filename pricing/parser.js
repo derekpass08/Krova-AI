@@ -1,4 +1,4 @@
-/* Krova Pricing Portal — matrix parser
+/* Pinnacle Pricing Portal — matrix parser
  *
  * Supplier matrix sheets have no common standard, so this parses by shape
  * rather than by supplier. Two layouts cover almost everything:
