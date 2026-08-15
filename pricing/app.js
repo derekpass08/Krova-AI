@@ -1185,6 +1185,9 @@
     if (!user) { render(); return null; }
     $('btnAccount').style.display = '';
     applyLicense();
+    if (Account.state.justConfirmed) {
+      toast('Email confirmed — welcome to Pinnacle. Your trial has started.');
+    }
     return loadAll().then(render);
   }).catch(function (e) {
     toast('Could not load your pricing: ' + e.message, true);

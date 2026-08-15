@@ -136,9 +136,12 @@ confirmation links point when nothing else is specified. Set:
 | Site URL | `https://energymatrixtool.com` |
 | Redirect URLs | `https://energymatrixtool.com/**` |
 
-The signup call passes `emailRedirectTo` explicitly so the link returns to
-`/?confirmed=1`, but Auth only honours a redirect that matches the allow list —
-hence the wildcard entry.
+The signup call passes `emailRedirectTo` as the **bare origin** on purpose.
+Auth only honours a redirect matching its allow list, and setting the Site URL
+is what populates that list — so a target carrying a path or query string needs
+the extra wildcard entry and errors out to a blank page without it. The bare
+origin works as soon as the Site URL is set. The wildcard row above is
+belt-and-braces for later additions.
 
 **2. Email template** (Authentication → Emails → Confirm signup)
 
@@ -163,9 +166,12 @@ Also worth knowing:
    address, with a resend button and a note about spam.
 2. Opens the email → a branded confirmation with the trial terms, not a bare
    link.
-3. Clicks confirm → lands back on the portal at `/?confirmed=1`, which shows
-   **Email confirmed. Sign in to start your trial.** and clears the auth
-   parameters from the URL so a refresh does not replay them.
+3. Clicks confirm → Supabase signs them in as part of confirming and returns
+   them to the portal already authenticated, so they land **inside the tool**
+   with *Email confirmed — welcome to Pinnacle* rather than being asked for the
+   password they just set. If no session comes back, the sign-in form is shown
+   with a confirmation notice instead. Either way the auth parameters are
+   stripped from the URL so a refresh cannot replay them.
 4. An expired or reused link is caught too, and says so rather than failing
    silently.
 

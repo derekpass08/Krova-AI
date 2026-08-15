@@ -17,6 +17,11 @@
 (function () {
   'use strict';
 
+  /* Supabase returns from a confirmation link with its tokens in the hash and
+   * consumes them as soon as the client initialises. Snapshot the URL first so
+   * we can still tell how the user arrived. */
+  var arrival = { hash: window.location.hash || '', search: window.location.search || '' };
+
   var cfg = window.PINNACLE_CONFIG;
   var sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, {
     auth: { persistSession: true, autoRefreshToken: true }
@@ -26,7 +31,8 @@
     user: null,
     profile: null,
     license: null,
-    ready: false
+    ready: false,
+    justConfirmed: false
   };
 
   /* ================= local blob cache ================= */
@@ -335,10 +341,15 @@
   var mode = 'signin';
   var pendingEmail = '';
 
-  /* Where the confirmation link should land. Whatever this returns must also be
-   * listed under Redirect URLs in the Supabase dashboard, or Auth rejects it. */
+  /* Where the confirmation link comes back to.
+   *
+   * Deliberately the bare origin with no path or query. Supabase only honours
+   * a redirect that matches its allow list, and setting the Site URL is what
+   * populates that list — so anything extra (a ?confirmed=1, a deeper path)
+   * needs a second wildcard entry and silently errors out without one. The
+   * bare origin works the moment the Site URL is set and nothing else. */
   function confirmTarget() {
-    return window.location.origin + window.location.pathname + '?confirmed=1';
+    return window.location.origin + '/';
   }
 
   function showVerifySent(email) {
@@ -382,22 +393,22 @@
    * we add ?confirmed=1. Greet them and get them straight into sign-in rather
    * than dropping them on an unexplained blank form. */
   function handleConfirmationReturn() {
-    var qs = window.location.search || '';
-    var hash = window.location.hash || '';
-    var confirmed = /[?&]confirmed=1/.test(qs);
-    var errored = /error_description=|error=/.test(qs + hash);
+    var both = arrival.search + '&' + arrival.hash.replace('#', '&');
+    var errored = /error_description=|[?&#]error=/.test(both);
 
     if (errored) {
       var m = decodeURIComponent(
-        ((qs + '&' + hash.replace('#', '&')).match(/error_description=([^&]*)/) || [, ''])[1]
+        (both.match(/error_description=([^&]*)/) || [, ''])[1]
       ).replace(/\+/g, ' ');
-      notice(m || 'That confirmation link is no longer valid. Request a new one below.', true);
-    } else if (confirmed) {
+      notice(m || 'That confirmation link has expired or was already used. ' +
+                  'Sign in below, or sign up again to get a fresh one.', true);
+    } else if (state.justConfirmed && !state.user) {
+      // confirmed, but no session came back — sign-in is the next step
       notice('Email confirmed. Sign in to start your trial.');
     }
 
-    if (confirmed || errored) {
-      // strip the auth noise so a refresh does not replay it
+    // strip the auth noise so a refresh cannot replay it
+    if (arrival.hash || /[?&](confirmed|error)/.test(arrival.search)) {
       window.history.replaceState({}, document.title,
         window.location.origin + window.location.pathname);
     }
@@ -467,6 +478,12 @@
   /* ================= boot ================= */
 
   function boot() {
+    /* Supabase signs the user in as part of confirming, so arriving with an
+     * access token means they are already authenticated — send them into the
+     * tool rather than making them type the password they just set. */
+    state.justConfirmed = /access_token=|type=signup/.test(arrival.hash) ||
+                          /[?&]confirmed=1/.test(arrival.search);
+
     return loadAccount().then(function (user) {
       state.ready = true;
       if (!user) { showAuth(true); return null; }
